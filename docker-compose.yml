@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:latest
+    container_name: flow_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: flowuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: flowdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - flow_network
+
+  adminer:
+    image: adminer:latest
+    container_name: flow_adminer
+    depends_on:
+      - postgres
+    ports:
+      - "8081:8080"
+    networks:
+      - flow_network
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: flow_postgres_exporter
+    environment:
+      DATA_SOURCE_NAME: "postgresql://flowuser:mypassword@postgres:5432/flowdb?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      - postgres
+    networks:
+      - flow_network
+  
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml
+    ports:
+      - "4317:4317" 
+      - "4318:4318"
+      - "8888:8888"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: flow_prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    depends_on:
+      - otel-collector
+    networks:
+      - flow_network
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: flow_grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - flow_network
+  
+volumes:
+  pgdata:
+
+networks:
+  flow_network:
+    driver: bridge

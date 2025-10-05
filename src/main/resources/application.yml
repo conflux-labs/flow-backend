@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: flow-backend
+  datasource:
+    url: jdbc:postgresql://localhost:5432/flowdb
+    username: flowuser
+    password: mypassword
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true # Corrected key and placement
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  security:
+    user:
+      name: admin
+      password: '{noop}admin123' # Added {noop} prefix for clarity
+
+server:
+  port: 8080
+
+# Custom application properties
+flow-backend:
+  jwt:
+    secret: mysecretkey
+    expiration: 604800000 # 7 days in MILLISECONDS
+
+# Management, Metrics, and Tracing Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "prometheus,health" # Expose prometheus and health endpoints
+  tracing:
+    sampling:
+      probability: 1.0  # Sample all requests
+  otlp: # Standard OpenTelemetry configuration for Spring Boot 3+
+    metrics:
+      export:
+        url: ${OTEL_EXPORTER_OTLP_METRICS_ENDPOINT:http://localhost:4318/v1/metrics}
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_TRACING_ENDPOINT:http://localhost:4317} # gRPC endpoint
+
+logging:
+  level:
+    org.springframework.security: DEBUG
+    me.ayushshukla: DEBUG
